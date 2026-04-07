@@ -75,11 +75,17 @@ def merge_api_data(sim_df: pd.DataFrame, api_speeds: list[dict]) -> pd.DataFrame
 
 
 def compare_sim_vs_api(df: pd.DataFrame) -> dict | None:
-    """按小时汇总模拟 vs API 车速对比
+    """模拟各小时均速 vs API 静态基准车速对比
 
-    返回: {"hourly": DataFrame(hour, sim_speed, api_speed, diff, deviation_pct),
+    说明：高德 API 返回的是路径规划的静态区间行驶时长，不区分小时。
+    因此 api_speed 在所有小时中是同一个值（按站点），hourly 表展示的是
+    "各小时模拟均速偏离 API 静态基准的程度"。
+
+    返回: {"hourly": DataFrame(hour, sim_speed, api_baseline, diff, deviation_pct),
            "overall_sim_speed": float, "overall_api_speed": float,
-           "overall_diff": float, "warning_count": int}
+           "overall_diff": float,
+           "warning_count": int (去重站点数),
+           "warning_stations": list[str]}
     如果没有 api_speed_kmh 列则返回 None
     """
     if "api_speed_kmh" not in df.columns or df["api_speed_kmh"].isna().all():
@@ -91,12 +97,17 @@ def compare_sim_vs_api(df: pd.DataFrame) -> dict | None:
 
     hourly = has_api.groupby("hour").agg(
         sim_speed=("avg_speed_kmh", "mean"),
-        api_speed=("api_speed_kmh", "mean"),
+        api_baseline=("api_speed_kmh", "mean"),
     ).round(1)
-    hourly["diff"] = (hourly["sim_speed"] - hourly["api_speed"]).round(1)
+    hourly["diff"] = (hourly["sim_speed"] - hourly["api_baseline"]).round(1)
     hourly["deviation_pct"] = (
-        hourly["diff"].abs() / hourly["api_speed"].replace(0, float("nan")) * 100
+        hourly["diff"].abs() / hourly["api_baseline"].replace(0, float("nan")) * 100
     ).round(1)
+
+    # 警告计数：按站点去重，而非记录条数
+    warning_stations = has_api.loc[
+        has_api["api_warning"], "station"
+    ].unique().tolist()
 
     return {
         "hourly": hourly,
@@ -104,8 +115,6 @@ def compare_sim_vs_api(df: pd.DataFrame) -> dict | None:
         "overall_api_speed": round(float(has_api["api_speed_kmh"].mean()), 1),
         "overall_diff": round(
             float(has_api["avg_speed_kmh"].mean() - has_api["api_speed_kmh"].mean()), 1),
-        "warning_count": int(has_api["api_warning"].sum()),
-        "warning_stations": has_api.loc[
-            has_api["api_warning"], "station"
-        ].unique().tolist(),
+        "warning_count": len(warning_stations),
+        "warning_stations": warning_stations,
     }

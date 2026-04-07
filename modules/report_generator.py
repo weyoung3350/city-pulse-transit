@@ -100,24 +100,26 @@ def generate_api_comparison(comparison: dict) -> str:
 
     lines = [
         "",
-        "【模拟 vs 实际数据对比（高德 API）】",
+        "【模拟 vs API 静态基准车速对比（高德 API）】",
+        "  说明: API 返回路径规划静态区间车速（不区分时段），",
+        "        下表展示各小时模拟均速偏离 API 基准的程度。",
         f"  模拟平均车速: {comparison['overall_sim_speed']} km/h",
-        f"  API 实际车速: {comparison['overall_api_speed']} km/h",
+        f"  API 基准车速: {comparison['overall_api_speed']} km/h",
         f"  整体偏差: {comparison['overall_diff']:+.1f} km/h",
-        f"  偏差超 20% 站点数: {comparison['warning_count']}",
+        f"  偏差超 20% 站点数: {comparison['warning_count']} 个",
     ]
 
     if comparison["warning_stations"]:
         lines.append(f"  ⚠ 偏差警告站点: {', '.join(comparison['warning_stations'])}")
 
-    # 小时级明细
+    # 各小时偏离明细
     hourly = comparison["hourly"]
     lines.append("")
-    lines.append("  时段  模拟车速  API车速  偏差    偏差%")
+    lines.append("  时段  模拟均速  API基准  偏差    偏差%")
     for hour, row in hourly.iterrows():
         lines.append(
             f"  {hour:02d}:00  {row['sim_speed']:>6.1f}  "
-            f"{row['api_speed']:>6.1f}  {row['diff']:>+5.1f}  "
+            f"{row['api_baseline']:>6.1f}  {row['diff']:>+5.1f}  "
             f"{row['deviation_pct']:>5.1f}%"
         )
 

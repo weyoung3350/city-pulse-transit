@@ -131,7 +131,7 @@ class App(tk.Tk):
         elif chart_type == "折线图":
             plot_speed_trend(df, fig, highlight_hour=hour)
         elif chart_type == "柱状图":
-            plot_ontime_bar(df, fig)
+            plot_ontime_bar(df, fig, highlight_hour=hour)
         elif chart_type == "预测图":
             plot_prediction(df, fig, self._predictions)
         self.dashboard.refresh_canvas()
@@ -194,16 +194,21 @@ class App(tk.Tk):
         if hour_df.empty:
             self.report.update_hour_summary(hour, "该时段无数据")
             return
-        avg_passengers = int(hour_df["passengers"].mean())
+        total_passengers = int(hour_df["passengers"].sum())
         avg_crowding = round(float(hour_df["crowding_level"].mean()), 3)
         avg_delay = round(float(hour_df["delay_minutes"].mean()), 2)
         avg_speed = round(float(hour_df["avg_speed_kmh"].mean()), 1)
         on_time_pct = round(float(hour_df["on_time"].mean() * 100), 1)
+        # 该时段最拥堵站点
+        busiest = hour_df.groupby("station")["crowding_level"].mean()
+        busiest_station = busiest.idxmax()
+        busiest_val = round(float(busiest.max()), 3)
         self.report.update_hour_summary(
             hour,
-            f"均客流 {avg_passengers}  拥挤度 {avg_crowding}\n"
+            f"总客流 {total_passengers:,}  拥挤度 {avg_crowding}\n"
             f"延误 {avg_delay}min  车速 {avg_speed}km/h\n"
-            f"准点率 {on_time_pct}%",
+            f"准点率 {on_time_pct}%\n"
+            f"最拥堵: {busiest_station}({busiest_val})",
         )
 
     def _train_and_show_prediction(self, df):
