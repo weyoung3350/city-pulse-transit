@@ -29,6 +29,16 @@ class ReportPanel(ttk.Frame):
         scrollbar.pack(side="right", fill="y")
         canvas.pack(side="left", fill="both", expand=True)
 
+        # ── 结论摘要（评委一眼看懂）──
+        self._add_section("分析结论")
+        self.lbl_conclusion = ttk.Label(
+            self._content, text="—", font=FONT_BODY,
+            wraplength=250, justify="left",
+            foreground=COLORS["accent"])
+        self.lbl_conclusion.pack(anchor="w", padx=12, pady=(2, 6))
+
+        ttk.Separator(self._content, orient="horizontal").pack(fill="x", padx=8, pady=6)
+
         # ── 数据概览 ──
         self._add_section("数据概览")
         self.lbl_records = self._add_item("总记录数", "—")
@@ -104,6 +114,15 @@ class ReportPanel(ttk.Frame):
                         wraplength=250, justify="left", foreground=COLORS["text_secondary"])
         lbl.pack(anchor="w", padx=16, pady=1)
         return lbl
+
+    def update_conclusion(self, text: str):
+        """更新结论摘要"""
+        self.lbl_conclusion.config(text=text)
+        # 根据内容动态设置颜色
+        if text.startswith("⚠"):
+            self.lbl_conclusion.config(foreground=COLORS["accent"])
+        else:
+            self.lbl_conclusion.config(foreground=COLORS["accent_green"])
 
     def update_statistics(self, stats: dict):
         """更新数据概览区域"""

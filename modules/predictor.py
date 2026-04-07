@@ -6,7 +6,7 @@ from sklearn.linear_model import LinearRegression
 
 
 def train_passenger_model(df: pd.DataFrame) -> dict:
-    """训练客流预测模型
+    """训练客流预测模型（前 N-1 天训练，最后 1 天验证）
 
     特征: [hour, station_index, is_workday, prev_hour_passengers]
     目标: passengers
@@ -20,21 +20,35 @@ def train_passenger_model(df: pd.DataFrame) -> dict:
     )["passengers"].shift(1).fillna(0)
 
     features = ["hour", "station_index", "is_workday", "prev_passengers"]
-    X = df_sorted[features].values
-    y = df_sorted["passengers"].values
+
+    # 时间切分：前 N-1 天训练，最后 1 天验证
+    dates = sorted(df_sorted["date"].unique())
+    train_dates = dates[:-1]
+    test_date = dates[-1]
+
+    train_df = df_sorted[df_sorted["date"].isin(train_dates)]
+    test_df = df_sorted[df_sorted["date"] == test_date]
+
+    X_train = train_df[features].values
+    y_train = train_df["passengers"].values
+    X_test = test_df[features].values
+    y_test = test_df["passengers"].values
 
     model = LinearRegression()
-    model.fit(X, y)
+    model.fit(X_train, y_train)
 
-    y_pred = model.predict(X)
-    r2 = model.score(X, y)
-    mae = float(np.mean(np.abs(y - y_pred)))
+    train_r2 = model.score(X_train, y_train)
+    test_r2 = model.score(X_test, y_test)
+    test_mae = float(np.mean(np.abs(y_test - model.predict(X_test))))
 
     return {
         "model": model,
         "features": features,
-        "r2_score": round(r2, 4),
-        "mae": round(mae, 1),
+        "train_r2": round(train_r2, 4),
+        "test_r2": round(test_r2, 4),
+        "test_mae": round(test_mae, 1),
+        "train_days": len(train_dates),
+        "test_day": str(test_date)[:10],
     }
 
 

@@ -155,11 +155,15 @@ class App(tk.Tk):
         inefficient = detect_lowest_efficiency_period(df)
         bottlenecks = find_bottleneck_periods(df)
 
+        # 结论先行
+        from modules.report_generator import generate_conclusion, generate_suggestions
+        conclusion = generate_conclusion(stats, crowded, inefficient)
+        self.report.update_conclusion(conclusion)
+
         self.report.update_statistics(stats)
         self.report.update_anomaly(crowded, inefficient)
 
         # 生成建议
-        from modules.report_generator import generate_suggestions
         self._suggestions = generate_suggestions(
             stats, crowded, inefficient, bottlenecks)
         self.report.update_suggestions(self._suggestions)
@@ -217,8 +221,10 @@ class App(tk.Tk):
         model_info = train_passenger_model(df)
         self._predictions = self._build_prediction_data(df, model_info)
         self.report.update_prediction(
-            f"R² = {model_info['r2_score']}  MAE = {model_info['mae']}",
-            "预测模型已就绪")
+            f"训练 {model_info['train_days']}天  验证 {model_info['test_day']}",
+            f"训练R²={model_info['train_r2']}  "
+            f"验证R²={model_info['test_r2']}  "
+            f"MAE={model_info['test_mae']}")
 
     def _build_prediction_data(self, df, model_info) -> dict:
         """构建预测图数据"""
@@ -286,15 +292,18 @@ class App(tk.Tk):
         filepath = OUTPUT_DIR / f"report_{ts}.txt"
 
         try:
-            from modules.report_generator import generate_summary, generate_api_comparison
+            from modules.report_generator import (
+                generate_conclusion, generate_summary, generate_api_comparison)
             from modules.data_loader import compare_sim_vs_api
             df = self._get_filtered_df()
             stats = calc_statistics(df)
             crowded = detect_most_crowded_station(df)
             inefficient = detect_lowest_efficiency_period(df)
+            conclusion = generate_conclusion(stats, crowded, inefficient)
             summary = generate_summary(stats, crowded, inefficient)
 
             with open(filepath, "w", encoding="utf-8") as f:
+                f.write(f"【分析结论】\n{conclusion}\n\n")
                 f.write(summary)
                 f.write("\n\n【优化建议】\n")
                 for i, s in enumerate(self._suggestions, 1):
