@@ -145,10 +145,7 @@ class App(tk.Tk):
         }
         for name, plot_fn in thumb_map.items():
             fig, _ = self.dashboard.thumb_figs[name]
-            if name == "柱状图":
-                plot_fn(df, fig)
-            else:
-                plot_fn(df, fig, highlight_hour=hour)
+            plot_fn(df, fig, highlight_hour=hour)
             self.dashboard.refresh_thumb(name)
 
     def _update_report(self, df):
@@ -162,24 +159,61 @@ class App(tk.Tk):
         self.report.update_anomaly(crowded, inefficient)
 
         # 生成建议
-        try:
-            from modules.report_generator import generate_suggestions
-            self._suggestions = generate_suggestions(
-                stats, crowded, inefficient, bottlenecks)
-        except ImportError:
-            self._suggestions = ["模块加载中...", "", ""]
+        from modules.report_generator import generate_suggestions
+        self._suggestions = generate_suggestions(
+            stats, crowded, inefficient, bottlenecks)
         self.report.update_suggestions(self._suggestions)
 
-        # 预测
-        try:
-            from modules.predictor import train_passenger_model
-            model_info = train_passenger_model(df)
-            self._predictions = self._build_prediction_data(df, model_info)
-            self.report.update_prediction(
-                f"R² = {model_info['r2_score']}  MAE = {model_info['mae']}",
-                "预测模型已就绪")
-        except ImportError:
-            self.report.update_prediction("模块加载中...")
+        # 当前关注时段摘要
+        hour = self.dashboard.get_current_hour()
+        self._update_hour_summary(df, hour)
+
+        # API 校验对比（仅当有 API 数据时显示）
+        from modules.data_loader import compare_sim_vs_api
+        comparison = compare_sim_vs_api(df)
+        self._api_comparison = comparison
+        if comparison:
+            self.report.update_api_comparison(
+                f"模拟 {comparison['overall_sim_speed']} vs "
+                f"API {comparison['overall_api_speed']} km/h  "
+                f"偏差 {comparison['overall_diff']:+.1f} km/h",
+                f"偏差>20%站点: {', '.join(comparison['warning_stations'])}"
+                if comparison["warning_stations"] else "所有站点偏差在合理范围内",
+            )
+        else:
+            self.report.update_api_comparison("", "")
+
+        # 预测：仅在用户选择预测图时触发（MVP 边界）
+        filters = self.control.get_filters()
+        if filters["chart_type"] == "预测图":
+            self._train_and_show_prediction(df)
+
+    def _update_hour_summary(self, df, hour: int):
+        """更新当前关注时段摘要"""
+        hour_df = df[df["hour"] == hour]
+        if hour_df.empty:
+            self.report.update_hour_summary(hour, "该时段无数据")
+            return
+        avg_passengers = int(hour_df["passengers"].mean())
+        avg_crowding = round(float(hour_df["crowding_level"].mean()), 3)
+        avg_delay = round(float(hour_df["delay_minutes"].mean()), 2)
+        avg_speed = round(float(hour_df["avg_speed_kmh"].mean()), 1)
+        on_time_pct = round(float(hour_df["on_time"].mean() * 100), 1)
+        self.report.update_hour_summary(
+            hour,
+            f"均客流 {avg_passengers}  拥挤度 {avg_crowding}\n"
+            f"延误 {avg_delay}min  车速 {avg_speed}km/h\n"
+            f"准点率 {on_time_pct}%",
+        )
+
+    def _train_and_show_prediction(self, df):
+        """训练预测模型并更新 UI"""
+        from modules.predictor import train_passenger_model
+        model_info = train_passenger_model(df)
+        self._predictions = self._build_prediction_data(df, model_info)
+        self.report.update_prediction(
+            f"R² = {model_info['r2_score']}  MAE = {model_info['mae']}",
+            "预测模型已就绪")
 
     def _build_prediction_data(self, df, model_info) -> dict:
         """构建预测图数据"""
@@ -247,7 +281,8 @@ class App(tk.Tk):
         filepath = OUTPUT_DIR / f"report_{ts}.txt"
 
         try:
-            from modules.report_generator import generate_summary
+            from modules.report_generator import generate_summary, generate_api_comparison
+            from modules.data_loader import compare_sim_vs_api
             df = self._get_filtered_df()
             stats = calc_statistics(df)
             crowded = detect_most_crowded_station(df)
@@ -259,6 +294,11 @@ class App(tk.Tk):
                 f.write("\n\n【优化建议】\n")
                 for i, s in enumerate(self._suggestions, 1):
                     f.write(f"{i}. {s}\n")
+                # API 对比段落（如果有 API 数据）
+                comparison = compare_sim_vs_api(df)
+                api_text = generate_api_comparison(comparison)
+                if api_text:
+                    f.write(f"\n{api_text}\n")
 
             self._set_status(f"报告已导出: {filepath.name}")
         except Exception as e:

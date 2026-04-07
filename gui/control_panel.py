@@ -24,10 +24,9 @@ class ControlPanel(ttk.Frame):
         return [s["name"] for s in data["stations"]]
 
     def _build_ui(self):
-        pad = {"padx": 8, "pady": 3}
-
         # ── 日期范围 ──
-        ttk.Label(self, text="日期范围", font=FONT_HEADING).pack(anchor="w", **pad, pady=(10, 3))
+        ttk.Label(self, text="日期范围", font=FONT_HEADING).pack(
+            anchor="w", padx=8, pady=(10, 3))
         self.day_type_var = tk.StringVar(value="全部")
         for label in ("全部", "工作日", "周末"):
             ttk.Radiobutton(
@@ -35,22 +34,31 @@ class ControlPanel(ttk.Frame):
                 value=label, command=self._fire_change,
             ).pack(anchor="w", padx=16)
 
-        ttk.Separator(self, orient="horizontal").pack(fill="x", **pad, pady=8)
+        ttk.Separator(self, orient="horizontal").pack(fill="x", padx=8, pady=8)
 
         # ── 图表类型 ──
-        ttk.Label(self, text="图表类型", font=FONT_HEADING).pack(anchor="w", **pad)
+        ttk.Label(self, text="图表类型", font=FONT_HEADING).pack(
+            anchor="w", padx=8, pady=3)
         self.chart_var = tk.StringVar(value="热力图")
-        chart_types = ["热力图", "折线图", "柱状图", "预测图"]
-        for ct in chart_types:
+        # MVP 核心图表
+        for ct in ("热力图", "折线图", "柱状图"):
             ttk.Radiobutton(
                 self, text=ct, variable=self.chart_var,
                 value=ct, command=self._fire_change,
             ).pack(anchor="w", padx=16)
+        # 增强项
+        ttk.Label(self, text="增强项:", font=FONT_BODY,
+                  foreground="#5f6368").pack(anchor="w", padx=16, pady=(4, 0))
+        ttk.Radiobutton(
+            self, text="预测图", variable=self.chart_var,
+            value="预测图", command=self._fire_change,
+        ).pack(anchor="w", padx=16)
 
-        ttk.Separator(self, orient="horizontal").pack(fill="x", **pad, pady=8)
+        ttk.Separator(self, orient="horizontal").pack(fill="x", padx=8, pady=8)
 
         # ── 站点筛选 ──
-        ttk.Label(self, text="站点筛选", font=FONT_HEADING).pack(anchor="w", **pad)
+        ttk.Label(self, text="站点筛选", font=FONT_HEADING).pack(
+            anchor="w", padx=8, pady=3)
 
         # 全选/反选
         btn_frame = ttk.Frame(self)
@@ -87,13 +95,13 @@ class ControlPanel(ttk.Frame):
                 command=self._fire_change,
             ).pack(anchor="w")
 
-        ttk.Separator(self, orient="horizontal").pack(fill="x", **pad, pady=8)
+        ttk.Separator(self, orient="horizontal").pack(fill="x", padx=8, pady=8)
 
         # ── 操作按钮 ──
         ttk.Button(self, text="刷新图表", command=self._fire_change).pack(
-            fill="x", **pad, pady=2)
+            fill="x", padx=8, pady=2)
         ttk.Button(self, text="API 获取数据", command=self._fire_api).pack(
-            fill="x", **pad, pady=2)
+            fill="x", padx=8, pady=2)
 
     def get_filters(self) -> dict:
         """获取当前筛选条件"""

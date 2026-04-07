@@ -25,10 +25,10 @@ class DashboardFrame(ttk.Frame):
         slider_frame.pack(fill=tk.X, padx=10, pady=5)
 
         ttk.Label(slider_frame, text="时段:", font=FONT_BODY).pack(side=tk.LEFT)
-        self.hour_label = ttk.Label(slider_frame, text="6:00", font=FONT_BODY, width=6)
+        self.hour_label = ttk.Label(slider_frame, text="8:00", font=FONT_BODY, width=6)
         self.hour_label.pack(side=tk.LEFT)
 
-        self._slider_var = tk.DoubleVar(value=6)
+        self._slider_var = tk.DoubleVar(value=8)
         self.time_slider = ttk.Scale(
             slider_frame, from_=6, to=23, orient=tk.HORIZONTAL,
             variable=self._slider_var,

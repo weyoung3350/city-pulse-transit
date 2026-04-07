@@ -55,16 +55,57 @@ def filter_data(
 
 
 def merge_api_data(sim_df: pd.DataFrame, api_speeds: list[dict]) -> pd.DataFrame:
-    """将 API 获取的实际车速数据合并到模拟数据中
+    """将 API 获取的实际区间车速合并到模拟数据中
 
-    参数:
-        api_speeds: [{"from": "临平", "to": "南苑", "api_speed_kmh": 54.0}, ...]
-    返回:
-        增加 api_speed_kmh 和 speed_diff 列的 DataFrame
+    为每个站点（按 from 站名）挂上 API 基准车速，然后计算：
+    - api_speed_kmh: API 返回的区间实际车速
+    - speed_diff: 模拟车速 - API 车速
+    - speed_deviation_pct: 偏差百分比 |diff| / api_speed × 100
+    - api_warning: 偏差超过 20% 时标记为 True
     """
     df = sim_df.copy()
-    # 建立站点到 API 车速的映射（用 from 站名作为 key）
     speed_map = {item["from"]: item["api_speed_kmh"] for item in api_speeds}
     df["api_speed_kmh"] = df["station"].map(speed_map)
     df["speed_diff"] = df["avg_speed_kmh"] - df["api_speed_kmh"]
+    df["speed_deviation_pct"] = (
+        df["speed_diff"].abs() / df["api_speed_kmh"].replace(0, float("nan")) * 100
+    ).round(1)
+    df["api_warning"] = df["speed_deviation_pct"] > 20
     return df
+
+
+def compare_sim_vs_api(df: pd.DataFrame) -> dict | None:
+    """按小时汇总模拟 vs API 车速对比
+
+    返回: {"hourly": DataFrame(hour, sim_speed, api_speed, diff, deviation_pct),
+           "overall_sim_speed": float, "overall_api_speed": float,
+           "overall_diff": float, "warning_count": int}
+    如果没有 api_speed_kmh 列则返回 None
+    """
+    if "api_speed_kmh" not in df.columns or df["api_speed_kmh"].isna().all():
+        return None
+
+    has_api = df.dropna(subset=["api_speed_kmh"])
+    if has_api.empty:
+        return None
+
+    hourly = has_api.groupby("hour").agg(
+        sim_speed=("avg_speed_kmh", "mean"),
+        api_speed=("api_speed_kmh", "mean"),
+    ).round(1)
+    hourly["diff"] = (hourly["sim_speed"] - hourly["api_speed"]).round(1)
+    hourly["deviation_pct"] = (
+        hourly["diff"].abs() / hourly["api_speed"].replace(0, float("nan")) * 100
+    ).round(1)
+
+    return {
+        "hourly": hourly,
+        "overall_sim_speed": round(float(has_api["avg_speed_kmh"].mean()), 1),
+        "overall_api_speed": round(float(has_api["api_speed_kmh"].mean()), 1),
+        "overall_diff": round(
+            float(has_api["avg_speed_kmh"].mean() - has_api["api_speed_kmh"].mean()), 1),
+        "warning_count": int(has_api["api_warning"].sum()),
+        "warning_stations": has_api.loc[
+            has_api["api_warning"], "station"
+        ].unique().tolist(),
+    }

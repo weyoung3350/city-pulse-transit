@@ -29,8 +29,6 @@ class ReportPanel(ttk.Frame):
         scrollbar.pack(side="right", fill="y")
         canvas.pack(side="left", fill="both", expand=True)
 
-        pad = {"padx": 8, "pady": 2}
-
         # ── 数据概览 ──
         self._add_section("数据概览")
         self.lbl_records = self._add_item("总记录数", "—")
@@ -41,7 +39,7 @@ class ReportPanel(ttk.Frame):
         self.lbl_avg_speed = self._add_item("平均车速", "—")
         self.lbl_peak = self._add_item("高峰时段", "—")
 
-        ttk.Separator(self._content, orient="horizontal").pack(fill="x", **pad, pady=6)
+        ttk.Separator(self._content, orient="horizontal").pack(fill="x", padx=8, pady=6)
 
         # ── 异常检测 ──
         self._add_section("异常检测")
@@ -50,7 +48,7 @@ class ReportPanel(ttk.Frame):
         self.lbl_inefficient = self._add_item("最低效时段", "—")
         self.lbl_inefficient_detail = self._add_detail()
 
-        ttk.Separator(self._content, orient="horizontal").pack(fill="x", **pad, pady=6)
+        ttk.Separator(self._content, orient="horizontal").pack(fill="x", padx=8, pady=6)
 
         # ── 优化建议 ──
         self._add_section("优化建议")
@@ -61,16 +59,36 @@ class ReportPanel(ttk.Frame):
             lbl.pack(anchor="w", padx=12, pady=2)
             self.suggestion_labels.append(lbl)
 
-        ttk.Separator(self._content, orient="horizontal").pack(fill="x", **pad, pady=6)
+        ttk.Separator(self._content, orient="horizontal").pack(fill="x", padx=8, pady=6)
+
+        # ── 当前关注时段 ──
+        self._add_section("当前关注时段")
+        self.lbl_hour_title = self._add_detail()
+        self.lbl_hour_summary = self._add_detail()
+
+        ttk.Separator(self._content, orient="horizontal").pack(fill="x", padx=8, pady=6)
+
+        # ── API 数据对比 ──
+        self._section_api = self._add_section_frame("API 数据对比")
+        self.lbl_api_info = self._add_detail()
+        self.lbl_api_detail = self._add_detail()
+
+        ttk.Separator(self._content, orient="horizontal").pack(fill="x", padx=8, pady=6)
 
         # ── 预测结果 ──
-        self._add_section("预测结果")
+        self._section_predict = self._add_section_frame("预测结果")
         self.lbl_predict_info = self._add_detail()
         self.lbl_predict_result = self._add_detail()
 
     def _add_section(self, title: str):
         ttk.Label(self._content, text=title, font=FONT_HEADING).pack(
             anchor="w", padx=8, pady=(8, 2))
+
+    def _add_section_frame(self, title: str) -> ttk.Frame:
+        """添加一个可隐藏的 section（返回 frame 以便控制 visibility）"""
+        ttk.Label(self._content, text=title, font=FONT_HEADING).pack(
+            anchor="w", padx=8, pady=(8, 2))
+        return self._content  # 简单返回 content 以保持接口一致
 
     def _add_item(self, label: str, value: str) -> ttk.Label:
         frame = ttk.Frame(self._content)
@@ -118,6 +136,16 @@ class ReportPanel(ttk.Frame):
                 lbl.config(text=f"{i+1}. {suggestions[i]}")
             else:
                 lbl.config(text=f"{i+1}. —")
+
+    def update_hour_summary(self, hour: int, summary: str):
+        """更新当前关注时段摘要"""
+        self.lbl_hour_title.config(text=f"{hour}:00 时段")
+        self.lbl_hour_summary.config(text=summary)
+
+    def update_api_comparison(self, info: str, detail: str = ""):
+        """更新 API 数据对比区域"""
+        self.lbl_api_info.config(text=info)
+        self.lbl_api_detail.config(text=detail)
 
     def update_prediction(self, info: str, result: str = ""):
         """更新预测结果"""

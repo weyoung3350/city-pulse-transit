@@ -131,6 +131,16 @@ def plot_ontime_bar(df, fig: Figure, highlight_hour: int | None = None):
     ]
     ax.legend(handles=legend_items, fontsize=10)
     ax.grid(axis="y", alpha=0.3)
+
+    # 当前关注时段标注
+    if highlight_hour is not None:
+        hour_df = df[df["hour"] == highlight_hour]
+        if not hour_df.empty:
+            hour_rate = hour_df["on_time"].mean() * 100
+            ax.set_title(
+                f"每日准点率对比（{highlight_hour}:00 时段准点率 {hour_rate:.1f}%）",
+                fontsize=13, fontweight="bold", pad=12)
+
     fig.tight_layout()
 
 

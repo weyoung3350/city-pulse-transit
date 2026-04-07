@@ -11,7 +11,7 @@ DATA_FILE = DATA_DIR / "metro_sim_data.csv"
 STATIONS_FILE = DATA_DIR / "stations.json"
 
 # ── 随机种子（保证数据可复现）────────────────────────
-RANDOM_SEED = 42
+RANDOM_SEED = 20260407
 
 # ── 高德地图 API（可选，留空则使用内置数据）──────────
 AMAP_API_KEY = ""
